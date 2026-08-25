@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Настройки свечей</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .admin {
+      max-width: 480px;
+      margin: 40px auto;
+      padding: 24px;
+      background: rgba(12, 8, 6, 0.72);
+      border: 1px solid rgba(212, 175, 110, 0.3);
+      border-radius: 12px;
+      position: relative;
+      z-index: 1;
+    }
+    .admin h1 {
+      font-size: 28px;
+      letter-spacing: 0.08em;
+      margin: 0 0 16px;
+    }
+    .admin label {
+      display: block;
+      margin: 12px 0 4px;
+      color: #c4b08a;
+      font-size: 14px;
+    }
+    .admin input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #6a5a44;
+      background: #1a120e;
+      color: #f0e4c8;
+      font: 16px "Source Sans 3", sans-serif;
+    }
+    .admin .row { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .admin .msg { margin-top: 12px; min-height: 1.2em; color: #d4b36a; }
+    .hint-sm { font-size: 13px; color: #a89070; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="admin">
+    <h1>Settings candles</h1>
+    <p class="hint-sm">Таблица в БД: <code>settings_candles</code>. Время жизни — в секундах.</p>
+
+    <div id="login-box">
+      <label for="password">Пароль администратора</label>
+      <input id="password" type="password" autocomplete="current-password" />
+      <div class="row">
+        <button type="button" class="btn-wax" id="do-login">Войти</button>
+        <a class="btn-ghost" href="/">На сайт</a>
+      </div>
+    </div>
+
+    <div id="form-box" hidden>
+      <label for="life-small">Жизнь маленькой свечи (сек)</label>
+      <input id="life-small" type="number" min="60" step="60" />
+      <label for="life-large">Жизнь большой свечи (сек)</label>
+      <input id="life-large" type="number" min="60" step="60" />
+      <label for="check-interval">Интервал проверки (сек, минимум 60)</label>
+      <input id="check-interval" type="number" min="60" step="60" />
+      <p class="hint-sm">По умолчанию: 5400 (1.5 ч), 10800 (3 ч), 300 (5 мин).</p>
+      <div class="row">
+        <button type="button" class="btn-wax" id="do-save">Сохранить</button>
+        <button type="button" class="btn-ghost" id="do-logout">Выйти из админки</button>
+        <a class="btn-ghost" href="/">На сайт</a>
+      </div>
+    </div>
+    <p class="msg" id="msg"></p>
+  </div>
+  <script>
+    const msg = document.getElementById("msg");
+    const loginBox = document.getElementById("login-box");
+    const formBox = document.getElementById("form-box");
+
+    function setMsg(text) { msg.textContent = text || ""; }
+
+    function fillForm(data) {
+      document.getElementById("life-small").value = data.life_small_sec;
+      document.getElementById("life-large").value = data.life_large_sec;
+      document.getElementById("check-interval").value = data.check_interval_sec;
+    }
+
+    async function loadSettings() {
+      const res = await fetch("/api/admin/settings");
+      if (res.status === 401) {
+        loginBox.hidden = false;
+        formBox.hidden = true;
+        return;
+      }
+      if (!res.ok) {
+        setMsg("Не удалось загрузить настройки");
+        return;
+      }
+      fillForm(await res.json());
+      loginBox.hidden = true;
+      formBox.hidden = false;
+    }
+
+    document.getElementById("do-login").onclick = async () => {
+      const password = document.getElementById("password").value;
+      let res;
+      try {
+        res = await fetch("/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+        });
+      } catch (e) {
+        setMsg("Нет связи с сервером");
+        return;
+      }
+      if (res.status === 503) {
+        setMsg("На сервере не задан ADMIN_PASSWORD в .env (перезапусти контейнер)");
+        return;
+      }
+      if (res.status === 403) {
+        setMsg("Неверный пароль");
+        return;
+      }
+      if (!res.ok) {
+        setMsg("Ошибка входа: " + res.status);
+        return;
+      }
+      setMsg("Вход выполнен");
+      await loadSettings();
+    };
+
+    document.getElementById("do-save").onclick = async () => {
+      const body = {
+        life_small_sec: Number(document.getElementById("life-small").value),
+        life_large_sec: Number(document.getElementById("life-large").value),
+        check_interval_sec: Number(document.getElementById("check-interval").value),
+      };
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        setMsg("Ошибка сохранения");
+        return;
+      }
+      fillForm(await res.json());
+      setMsg("Сохранено в settings_candles");
+    };
+
+    document.getElementById("do-logout").onclick = async () => {
+      await fetch("/api/admin/logout", { method: "POST" });
+      loginBox.hidden = false;
+      formBox.hidden = true;
+      setMsg("Вышли из админки");
+    };
+
+    loadSettings();
+  </script>
+</body>
+</html>

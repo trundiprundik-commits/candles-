@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Свечи</title>
+  <link rel="icon" href="/yandex-icon-128.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header>
+    <div class="title-row">
+      <h1>Свечи</h1>
+      <p class="subtitle">за здравие · за упокой · в благодарность</p>
+    </div>
+    <div class="bar">
+      <div class="actions">
+        <button type="button" class="btn-wax" id="add-small">Маленькая свеча</button>
+        <button type="button" class="btn-wax" id="add-large">Большая свеча</button>
+        <button type="button" class="btn-danger" id="clear-all">Удалить все</button>
+      </div>
+      <div class="auth">
+        <span id="who"></span>
+        <a id="login" class="btn-yandex" href="/auth/login">Войти через Яндекс</a>
+        <button type="button" class="btn-ghost" id="logout" hidden>Выйти</button>
+        <a id="admin-link" class="btn-ghost" href="/admin.html">Настройки</a>
+      </div>
+    </div>
+    <nav id="tabs" class="tabs"></nav>
+  </header>
+  <main>
+    <canvas id="board"></canvas>
+  </main>
+  <p class="hint">Добавить — кнопки слева. Перетащить — место. Правый клик — убрать. Двойной клик — подпись.</p>
+  <script src="/app.js"></script>
+</body>
+</html>

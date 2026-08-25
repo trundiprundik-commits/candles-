@@ -1,0 +1,37 @@
+version: "3.3"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: candles
+      POSTGRES_USER: candles
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-candles_change_me}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U candles -d candles"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      SESSION_SECRET: ${SESSION_SECRET}
+      YANDEX_CLIENT_ID: ${YANDEX_CLIENT_ID}
+      YANDEX_CLIENT_SECRET: ${YANDEX_CLIENT_SECRET}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      DATABASE_URL: postgresql://candles:${POSTGRES_PASSWORD:-candles_change_me}@db:5432/candles
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+.env.local
+data/
+public_url.txt
+tools/
+pgdata/
+*.db
+.DS_Store
+
