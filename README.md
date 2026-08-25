@@ -1,36 +1,71 @@
 # Candles (сайт)
 
-Веб-приложение «Свечи»: Яндекс-вход, вкладки, SQLite локально или Postgres в Docker.
+Веб-приложение «Свечи»: Яндекс-вход, вкладки, Postgres в Docker, сгорание свечей, админка.
 
-Локально без Docker: SQLite в `data/candles.db`.
+`.env` **не** в Git (секреты только на машинах).
+
+## Обновление через Git (вместо scp)
+
+### Один раз на ПК
+
+1. Установи [Git](https://git-scm.com/download/win) (уже можно пользоваться).
+2. Создай пустой репозиторий на GitHub (без README) — например `candles`.
+3. В папке проекта:
+
+```text
+git remote add origin https://github.com/ТВОЙ_ЛОГИН/candles.git
+git push -u origin main
+```
+
+### Один раз на сервере
+
+```text
+cd ~
+git clone https://github.com/ТВОЙ_ЛОГИН/candles.git
+cd candles
+cp .env.example .env
+nano .env
+docker-compose up -d --build
+```
+
+Если папка `~/candles` уже есть со старыми файлами — либо переименуй её в `candles-old`, либо:
+
+```text
+cd ~/candles
+git init
+git remote add origin https://github.com/ТВОЙ_ЛОГИН/candles.git
+git fetch
+git checkout -f main
+```
+
+`.env` на сервере не трогай Git’ом (он в `.gitignore`).
+
+### Каждый раз, когда правишь сайт
+
+**На ПК:**
+
+```text
+git add -A
+git commit -m "описание изменений"
+git push
+```
+
+**На сервере:**
+
+```text
+cd ~/candles
+bash deploy.sh
+```
+
+или вручную: `git pull` и `docker-compose up -d --build`.
+
+## Локальный запуск без Docker
 
 ```text
 python -m pip install -r requirements.txt
 python -m uvicorn web_app:app --host 127.0.0.1 --port 8000
 ```
 
-Туннель для теста: `python run_tunnel.py`.
-
-## Один сервер: сайт + Postgres (без Managed Yandex)
-
-На любой Ubuntu VPS (дешёвый Timeweb / Beget / FirstVDS, или бесплатный Oracle Cloud Always Free):
-
-1. Установи Docker: https://docs.docker.com/engine/install/ubuntu/
-2. Скопируй папку проекта на сервер.
-3. Скопируй `.env.example` → `.env`, заполни ключи Яндекса, `SESSION_SECRET`, `POSTGRES_PASSWORD`, `PUBLIC_BASE_URL=http://IP_СЕРВЕРА:8000` (позже https).
-4. В oauth.yandex.ru Redirect URI: `http://IP:8000/auth/callback` (или https, когда сделаешь).
-5. Запуск:
-
-```text
-docker compose up -d --build
-```
-
-Сайт: `http://IP:8000`. Postgres слушает **только внутри Docker**, снаружи порт 5432 не открываем.
-
-Данные: `python show_db.py` локально (SQLite). На сервере:
-
-```text
-docker compose exec db psql -U candles -d candles -c "SELECT user_id, left(payload,80) FROM kv;"
-```
+Админка: `/admin.html` (пароль `ADMIN_PASSWORD` в `.env`).
 
 Десктоп: `C:\Users\north\py-candles-desktop`.
