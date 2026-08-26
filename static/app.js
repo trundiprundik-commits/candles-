@@ -28,7 +28,9 @@ function emptyState() {
 }
 
 function thicknessOf(c) {
-  return c.size === "large" ? 2.25 : 1.5;
+  if (c.size === "xl") return 3.1;
+  if (c.size === "large") return 2.25;
+  return 1.5;
 }
 
 /** При сгорании уменьшается только высота; толщина как у новой свечи. */
@@ -37,19 +39,45 @@ function heightScaleOf(c) {
 }
 
 function colorsOf(c) {
+  if (c.size === "xl") return ["#ffe08a", "#e0b040", "#fff3c0"];
   if (c.size === "large") return ["#f0c85e", "#d4a338", "#ffe08a"];
   return ["#e2b34a", "#c4922c", "#f3d27a"];
 }
 
+const SIZE_LABELS = {
+  small: "Маленькая свеча",
+  large: "Большая свеча",
+  xl: "Очень большая свеча",
+};
+
 let candleSettings = {
   life_small_sec: 5400,
   life_large_sec: 10800,
+  life_xl_sec: 21600,
   check_interval_sec: 300,
+  price_small_rub: 0,
+  price_large_rub: 0,
+  price_xl_rub: 0,
+  payment_mode: "off",
 };
 let burnTimer = null;
+let payResolver = null;
+
+function normalizeSize(size) {
+  if (size === "xl" || size === "large" || size === "small") return size;
+  return "small";
+}
 
 function lifeSec(c) {
-  return c.size === "large" ? candleSettings.life_large_sec : candleSettings.life_small_sec;
+  const size = normalizeSize(c.size);
+  if (size === "xl") return candleSettings.life_xl_sec;
+  if (size === "large") return candleSettings.life_large_sec;
+  return candleSettings.life_small_sec;
+}
+
+function priceOf(size) {
+  const key = `price_${normalizeSize(size)}_rub`;
+  return Math.max(0, Number(candleSettings[key]) || 0);
 }
 
 function remainingOf(c) {
@@ -98,7 +126,7 @@ function syncScreen(c) {
 function normalizeCandle(raw) {
   const c = {
     caption: typeof raw.caption === "string" ? raw.caption : "",
-    size: raw.size === "large" ? "large" : "small",
+    size: normalizeSize(raw.size),
     created_at: typeof raw.created_at === "string" && raw.created_at ? raw.created_at : utcNowIso(),
     nx: 0,
     ny: 0,
@@ -148,10 +176,16 @@ function pruneBurnedLocal() {
 
 function applySettings(settings) {
   if (!settings || typeof settings !== "object") return;
+  const mode = String(settings.payment_mode || "off").toLowerCase();
   candleSettings = {
     life_small_sec: Math.max(60, Number(settings.life_small_sec) || 5400),
     life_large_sec: Math.max(60, Number(settings.life_large_sec) || 10800),
+    life_xl_sec: Math.max(60, Number(settings.life_xl_sec) || 21600),
     check_interval_sec: Math.max(60, Number(settings.check_interval_sec) || 300),
+    price_small_rub: Math.max(0, Number(settings.price_small_rub) || 0),
+    price_large_rub: Math.max(0, Number(settings.price_large_rub) || 0),
+    price_xl_rub: Math.max(0, Number(settings.price_xl_rub) || 0),
+    payment_mode: mode === "mock" ? "mock" : "off",
   };
   if (burnTimer) clearInterval(burnTimer);
   burnTimer = setInterval(() => {
@@ -389,21 +423,50 @@ function payloadForSave() {
   return { state: { active: state.active, tabs } };
 }
 
-function addCandle(size) {
-  if (!userId) return needLogin();
-  const text = prompt("Как подписать эту свечу?", "");
-  if (text === null) return;
+function closePayModal(ok) {
+  const modal = document.getElementById("pay-modal");
+  if (modal) modal.hidden = true;
+  const resolve = payResolver;
+  payResolver = null;
+  if (resolve) resolve(Boolean(ok));
+}
+
+function openMockPayment(size, price) {
+  const modal = document.getElementById("pay-modal");
+  const desc = document.getElementById("pay-desc");
+  if (!modal || !desc) return Promise.resolve(false);
+  desc.textContent = `${SIZE_LABELS[normalizeSize(size)]}: ${price} ₽`;
+  modal.hidden = false;
+  return new Promise((resolve) => {
+    payResolver = resolve;
+  });
+}
+
+function placeCandle(size, caption) {
   const n = currentCandles().length;
   const c = normalizeCandle({
     nx: ((n % 6) - 2.5) * 0.08,
     ny: 0.12 + Math.floor(n / 6) * 0.06,
-    caption: text.trim(),
-    size,
+    caption: String(caption || "").trim(),
+    size: normalizeSize(size),
     created_at: utcNowIso(),
   });
   clamp(c);
   currentCandles().push(c);
   save();
+}
+
+async function requestAddCandle(size) {
+  if (!userId) return needLogin();
+  size = normalizeSize(size);
+  const text = prompt("Как подписать эту свечу?", "");
+  if (text === null) return;
+  const price = priceOf(size);
+  if (candleSettings.payment_mode === "mock" && price > 0) {
+    const paid = await openMockPayment(size, price);
+    if (!paid) return;
+  }
+  placeCandle(size, text);
 }
 
 async function save() {
@@ -496,8 +559,14 @@ canvas.addEventListener("contextmenu", (ev) => {
   save();
 });
 
-document.getElementById("add-small").addEventListener("click", () => addCandle("small"));
-document.getElementById("add-large").addEventListener("click", () => addCandle("large"));
+document.getElementById("add-small").addEventListener("click", () => requestAddCandle("small"));
+document.getElementById("add-large").addEventListener("click", () => requestAddCandle("large"));
+document.getElementById("add-xl").addEventListener("click", () => requestAddCandle("xl"));
+document.getElementById("pay-ok").addEventListener("click", () => closePayModal(true));
+document.getElementById("pay-cancel").addEventListener("click", () => closePayModal(false));
+document.getElementById("pay-modal").addEventListener("click", (ev) => {
+  if (ev.target.id === "pay-modal") closePayModal(false);
+});
 document.getElementById("clear-all").addEventListener("click", () => {
   if (!userId) return needLogin();
   const title = TABS.find((t) => t[0] === state.active)[1];

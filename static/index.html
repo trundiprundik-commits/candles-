@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/style.css?v=2" />
+  <link rel="stylesheet" href="/style.css?v=3" />
 </head>
 <body>
   <header>
@@ -20,6 +20,7 @@
       <div class="actions">
         <button type="button" class="btn-wax" id="add-small">Маленькая свеча</button>
         <button type="button" class="btn-wax" id="add-large">Большая свеча</button>
+        <button type="button" class="btn-wax-xl" id="add-xl">Очень большая свеча</button>
         <button type="button" class="btn-danger" id="clear-all">Удалить все</button>
       </div>
       <div class="auth">
@@ -35,6 +36,19 @@
     <canvas id="board"></canvas>
   </main>
   <p class="hint">Добавить — кнопки слева. Перетащить — место. Правый клик — убрать. Двойной клик — подпись.</p>
-  <script src="/app.js?v=2"></script>
+
+  <div id="pay-modal" class="pay-modal" hidden>
+    <div class="pay-card" role="dialog" aria-modal="true" aria-labelledby="pay-title">
+      <h2 id="pay-title">Оплата (тест)</h2>
+      <p id="pay-desc" class="pay-desc"></p>
+      <p class="pay-note">Мок-режим: деньги не списываются.</p>
+      <div class="pay-actions">
+        <button type="button" class="btn-wax" id="pay-ok">Оплатить</button>
+        <button type="button" class="btn-ghost" id="pay-cancel">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js?v=3"></script>
 </body>
 </html>

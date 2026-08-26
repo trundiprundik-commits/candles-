@@ -19,7 +19,7 @@
     .admin h1 { font-size: 28px; letter-spacing: 0.08em; margin: 0 0 8px; }
     .admin h2 { font-size: 18px; margin: 28px 0 10px; color: #e8d5a3; }
     .admin label { display: block; margin: 12px 0 4px; color: #c4b08a; font-size: 14px; }
-    .admin input {
+    .admin input, .admin select {
       width: 100%;
       max-width: 360px;
       padding: 10px 12px;
@@ -79,9 +79,26 @@
       <input id="life-small" type="number" min="60" step="60" />
       <label for="life-large">Жизнь большой свечи (сек)</label>
       <input id="life-large" type="number" min="60" step="60" />
+      <label for="life-xl">Жизнь очень большой свечи (сек)</label>
+      <input id="life-xl" type="number" min="60" step="60" />
       <label for="check-interval">Интервал проверки (сек, минимум 60)</label>
       <input id="check-interval" type="number" min="60" step="60" />
-      <p class="hint-sm">По умолчанию: 5400 (1.5 ч), 10800 (3 ч), 300 (5 мин).</p>
+      <p class="hint-sm">По умолчанию: 5400 (1.5 ч), 10800 (3 ч), 21600 (6 ч), 300 (5 мин).</p>
+
+      <h2>Цены и оплата</h2>
+      <label for="price-small">Цена маленькой свечи (₽)</label>
+      <input id="price-small" type="number" min="0" step="1" />
+      <label for="price-large">Цена большой свечи (₽)</label>
+      <input id="price-large" type="number" min="0" step="1" />
+      <label for="price-xl">Цена очень большой свечи (₽)</label>
+      <input id="price-xl" type="number" min="0" step="1" />
+      <label for="payment-mode">Режим оплаты</label>
+      <select id="payment-mode">
+        <option value="off">off — без оплаты (цены игнорируются)</option>
+        <option value="mock">mock — тестовая оплата (если цена &gt; 0)</option>
+      </select>
+      <p class="hint-sm">Цена 0 = бесплатно. В mock при цене &gt; 0 сначала окно «Оплатить», потом свеча.</p>
+
       <div class="row">
         <button type="button" class="btn-wax" id="do-save">Сохранить</button>
         <button type="button" class="btn-ghost" id="do-refresh">Обновить таблицы</button>
@@ -130,7 +147,13 @@
     function fillForm(data) {
       document.getElementById("life-small").value = data.life_small_sec;
       document.getElementById("life-large").value = data.life_large_sec;
+      document.getElementById("life-xl").value = data.life_xl_sec ?? 21600;
       document.getElementById("check-interval").value = data.check_interval_sec;
+      document.getElementById("price-small").value = data.price_small_rub ?? 0;
+      document.getElementById("price-large").value = data.price_large_rub ?? 0;
+      document.getElementById("price-xl").value = data.price_xl_rub ?? 0;
+      document.getElementById("payment-mode").value =
+        data.payment_mode === "mock" ? "mock" : "off";
     }
 
     function renderSettingsRows(rows) {
@@ -240,7 +263,12 @@
       const body = {
         life_small_sec: Number(document.getElementById("life-small").value),
         life_large_sec: Number(document.getElementById("life-large").value),
+        life_xl_sec: Number(document.getElementById("life-xl").value),
         check_interval_sec: Number(document.getElementById("check-interval").value),
+        price_small_rub: Number(document.getElementById("price-small").value),
+        price_large_rub: Number(document.getElementById("price-large").value),
+        price_xl_rub: Number(document.getElementById("price-xl").value),
+        payment_mode: document.getElementById("payment-mode").value,
       };
       const res = await fetch("/api/admin/settings", {
         method: "PUT",

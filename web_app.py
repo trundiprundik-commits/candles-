@@ -42,8 +42,16 @@ USE_POSTGRES = DATABASE_URL.startswith("postgres")
 DEFAULT_SETTINGS = {
     "life_small_sec": 5400,
     "life_large_sec": 10800,
+    "life_xl_sec": 21600,
     "check_interval_sec": 300,
+    "price_small_rub": 0,
+    "price_large_rub": 0,
+    "price_xl_rub": 0,
+    "payment_mode": "off",  # off | mock
 }
+
+PAYMENT_MODES = frozenset({"off", "mock"})
+CANDLE_SIZES = frozenset({"small", "large", "xl"})
 
 
 def utc_now_iso() -> str:
@@ -122,26 +130,49 @@ def init_db() -> None:
                 )
 
 
-def load_settings() -> dict[str, int]:
+def normalize_payment_mode(value: object) -> str:
+    mode = str(value or "").strip().lower()
+    return mode if mode in PAYMENT_MODES else "off"
+
+
+def normalize_candle_size(value: object) -> str:
+    size = str(value or "").strip().lower()
+    return size if size in CANDLE_SIZES else "small"
+
+
+def load_settings() -> dict:
     out = dict(DEFAULT_SETTINGS)
     with db_conn() as conn:
         rows = conn.execute("SELECT key, value FROM settings_candles").fetchall()
     for key, value in rows:
-        if key not in out:
+        if key not in DEFAULT_SETTINGS:
+            continue
+        if key == "payment_mode":
+            out[key] = normalize_payment_mode(value)
             continue
         try:
-            out[key] = max(1, int(value))
+            n = int(value)
         except (TypeError, ValueError):
             continue
-    out["check_interval_sec"] = max(60, out["check_interval_sec"])
+        if key.startswith("price_"):
+            out[key] = max(0, n)
+        elif key == "check_interval_sec":
+            out[key] = max(60, n)
+        else:
+            out[key] = max(60, n)
     return out
 
 
-def save_settings(data: dict[str, int]) -> dict[str, int]:
+def save_settings(data: dict) -> dict:
     cleaned = {
         "life_small_sec": max(60, int(data.get("life_small_sec", DEFAULT_SETTINGS["life_small_sec"]))),
         "life_large_sec": max(60, int(data.get("life_large_sec", DEFAULT_SETTINGS["life_large_sec"]))),
+        "life_xl_sec": max(60, int(data.get("life_xl_sec", DEFAULT_SETTINGS["life_xl_sec"]))),
         "check_interval_sec": max(60, int(data.get("check_interval_sec", DEFAULT_SETTINGS["check_interval_sec"]))),
+        "price_small_rub": max(0, int(data.get("price_small_rub", DEFAULT_SETTINGS["price_small_rub"]))),
+        "price_large_rub": max(0, int(data.get("price_large_rub", DEFAULT_SETTINGS["price_large_rub"]))),
+        "price_xl_rub": max(0, int(data.get("price_xl_rub", DEFAULT_SETTINGS["price_xl_rub"]))),
+        "payment_mode": normalize_payment_mode(data.get("payment_mode", DEFAULT_SETTINGS["payment_mode"])),
     }
     with db_conn() as conn:
         for key, value in cleaned.items():
@@ -177,11 +208,16 @@ def parse_created_at(value: object) -> datetime | None:
     return dt.astimezone(timezone.utc)
 
 
-def life_for_size(settings: dict[str, int], size: str) -> int:
-    return settings["life_large_sec"] if size == "large" else settings["life_small_sec"]
+def life_for_size(settings: dict, size: str) -> int:
+    size = normalize_candle_size(size)
+    if size == "xl":
+        return int(settings["life_xl_sec"])
+    if size == "large":
+        return int(settings["life_large_sec"])
+    return int(settings["life_small_sec"])
 
 
-def remaining_ratio(created_at: str, size: str, settings: dict[str, int], now: datetime | None = None) -> float:
+def remaining_ratio(created_at: str, size: str, settings: dict, now: datetime | None = None) -> float:
     created = parse_created_at(created_at)
     if created is None:
         return 1.0
@@ -195,7 +231,7 @@ def clean_candle(item: dict, now_iso: str) -> dict | None:
     try:
         entry = {
             "caption": str(item.get("caption") or "").strip()[:200],
-            "size": "large" if item.get("size") == "large" else "small",
+            "size": normalize_candle_size(item.get("size")),
         }
         has_norm = item.get("nx") is not None and item.get("ny") is not None
         has_abs = item.get("x") is not None and item.get("y") is not None
@@ -214,7 +250,7 @@ def clean_candle(item: dict, now_iso: str) -> dict | None:
         return None
 
 
-def prune_state(state: dict, settings: dict[str, int] | None = None) -> tuple[dict, bool]:
+def prune_state(state: dict, settings: dict | None = None) -> tuple[dict, bool]:
     settings = settings or load_settings()
     now = datetime.now(timezone.utc)
     now_iso = utc_now_iso()
