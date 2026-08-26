@@ -220,16 +220,33 @@ function roundRect(x, y, w, h, r) {
   ctx.closePath();
 }
 
+/** Один и тот же подсвечник с песком; по вкладкам — чуть ярче/темнее и другой оттенок. */
+const TAB_ATMOSPHERE = {
+  health: { brightness: 1.1, overlay: "rgba(55, 35, 12, 0.16)", wash: "rgba(255, 210, 140, 0.05)" },
+  repose: { brightness: 0.78, overlay: "rgba(6, 8, 20, 0.48)", wash: "rgba(60, 70, 110, 0.08)" },
+  thanks: { brightness: 1.05, overlay: "rgba(45, 28, 8, 0.2)", wash: "rgba(255, 190, 90, 0.07)" },
+  event: { brightness: 0.92, overlay: "rgba(28, 10, 16, 0.34)", wash: "rgba(180, 80, 70, 0.06)" },
+  other: { brightness: 1.0, overlay: "rgba(8, 5, 4, 0.28)", wash: "rgba(0, 0, 0, 0)" },
+};
+
 function drawScene() {
+  const mood = TAB_ATMOSPHERE[state.active] || TAB_ATMOSPHERE.other;
   if (churchBg.naturalWidth) {
     const iw = churchBg.naturalWidth;
     const ih = churchBg.naturalHeight;
     const scale = Math.max(canvas.width / iw, canvas.height / ih);
     const dw = iw * scale;
     const dh = ih * scale;
+    ctx.save();
+    ctx.filter = `brightness(${mood.brightness})`;
     ctx.drawImage(churchBg, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
-    ctx.fillStyle = "rgba(8, 5, 4, 0.28)";
+    ctx.restore();
+    ctx.fillStyle = mood.overlay;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (mood.wash && mood.wash !== "rgba(0, 0, 0, 0)") {
+      ctx.fillStyle = mood.wash;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
   } else {
     ctx.fillStyle = "#140f0c";
     ctx.fillRect(0, 0, canvas.width, canvas.height);

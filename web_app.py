@@ -398,6 +398,49 @@ async def admin_put_settings(request: Request) -> JSONResponse:
     return JSONResponse(save_settings(body))
 
 
+@app.get("/api/admin/data")
+def admin_get_data(request: Request) -> JSONResponse:
+    """Все строки kv + settings_candles для таблицы в админке."""
+    require_admin(request)
+    settings = load_settings()
+    with db_conn() as conn:
+        rows = conn.execute("SELECT user_id, payload FROM kv ORDER BY user_id").fetchall()
+        setting_rows = conn.execute("SELECT key, value FROM settings_candles ORDER BY key").fetchall()
+    users = []
+    for user_id, payload in rows:
+        try:
+            data = json.loads(payload)
+        except json.JSONDecodeError:
+            data = {"raw": payload}
+        counts = {tab: 0 for tab in TAB_IDS}
+        total = 0
+        if isinstance(data, dict):
+            tabs = data.get("tabs")
+            if isinstance(tabs, dict):
+                for tab in TAB_IDS:
+                    items = tabs.get(tab)
+                    n = len(items) if isinstance(items, list) else 0
+                    counts[tab] = n
+                    total += n
+        users.append(
+            {
+                "user_id": user_id,
+                "active": data.get("active") if isinstance(data, dict) else None,
+                "counts": counts,
+                "total_candles": total,
+                "payload": data,
+            }
+        )
+    return JSONResponse(
+        {
+            "settings": settings,
+            "settings_rows": [{"key": k, "value": v} for k, v in setting_rows],
+            "users": users,
+            "user_count": len(users),
+        }
+    )
+
+
 @app.get("/auth/login")
 def auth_login(request: Request) -> RedirectResponse:
     if not YANDEX_CLIENT_ID or not YANDEX_CLIENT_SECRET:
