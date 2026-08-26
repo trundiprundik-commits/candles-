@@ -34,7 +34,7 @@ def main() -> None:
     os.chdir(ROOT)
     bin_path = ensure_cloudflared()
     server = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "web_app:app", "--host", "127.0.0.1", "--port", "8000"],
+        [sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"],
         cwd=ROOT,
     )
     time.sleep(1.2)
