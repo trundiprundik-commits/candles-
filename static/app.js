@@ -529,12 +529,18 @@ async function boot() {
     userId = me.user_id;
     const label = me.email || me.login || me.display_name || "вход выполнен";
     whoEl.textContent = label;
-    loginEl.hidden = true;
+    // Убираем кнопку входа полностью: display у .btn-yandex перебивает [hidden]
+    loginEl.remove();
     logoutEl.hidden = false;
     const loaded = await (await fetch("/api/state")).json();
     await ingestStateResponse(loaded);
   } else {
+    userId = null;
     whoEl.textContent = me.auth_configured ? "нужен вход" : "в .env ещё нет ключей Яндекса";
+    loginEl.hidden = false;
+    loginEl.style.display = "";
+    loginEl.setAttribute("href", "/auth/login");
+    logoutEl.hidden = true;
   }
 }
 

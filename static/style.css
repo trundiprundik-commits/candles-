@@ -92,6 +92,10 @@ h1 {
   box-shadow: 0 4px 12px rgba(252, 63, 29, 0.28);
 }
 .btn-yandex:hover { filter: brightness(1.08); }
+/* .btn-* задаёт display:inline-block и перебивает UA-стиль [hidden] */
+[hidden] {
+  display: none !important;
+}
 .tabs {
   padding: 4px;
   background: rgba(18, 12, 8, 0.55);
