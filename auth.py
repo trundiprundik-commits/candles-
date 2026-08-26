@@ -18,6 +18,7 @@ from config import (
     YANDEX_INFO,
     YANDEX_TOKEN,
 )
+from db import upsert_user_email
 
 router = APIRouter(tags=["auth"])
 
@@ -113,6 +114,7 @@ def auth_callback(request: Request, code: str | None = None, state: str | None =
     request.session["display_name"] = display
     if is_admin:
         request.session["is_admin"] = True
+    upsert_user_email(user_id, str(email))
     return RedirectResponse("/", status_code=302)
 
 

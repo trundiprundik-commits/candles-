@@ -82,10 +82,12 @@ def admin_get_data(request: Request) -> JSONResponse:
     require_admin(request)
     settings = load_settings()
     with db_conn() as conn:
-        rows = conn.execute("SELECT user_id, payload FROM kv ORDER BY user_id").fetchall()
+        rows = conn.execute(
+            "SELECT user_id, email, payload FROM kv ORDER BY user_id"
+        ).fetchall()
         setting_rows = conn.execute("SELECT key, value FROM settings_candles ORDER BY key").fetchall()
     users = []
-    for user_id, payload in rows:
+    for user_id, email, payload in rows:
         try:
             data = json.loads(payload)
         except json.JSONDecodeError:
@@ -103,6 +105,7 @@ def admin_get_data(request: Request) -> JSONResponse:
         users.append(
             {
                 "user_id": user_id,
+                "email": email or "",
                 "active": data.get("active") if isinstance(data, dict) else None,
                 "counts": counts,
                 "total_candles": total,

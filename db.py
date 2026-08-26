@@ -56,10 +56,12 @@ def init_db() -> None:
             """
             CREATE TABLE IF NOT EXISTS kv (
                 user_id TEXT PRIMARY KEY,
-                payload TEXT NOT NULL
+                payload TEXT NOT NULL,
+                email TEXT NOT NULL DEFAULT ''
             )
             """
         )
+        _ensure_kv_email_column(conn)
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS settings_candles (
@@ -84,6 +86,18 @@ def init_db() -> None:
                     """,
                     (key, str(value)),
                 )
+
+
+def _ensure_kv_email_column(conn) -> None:
+    """Миграция: старые БД без колонки email."""
+    if USE_POSTGRES:
+        conn.execute(
+            "ALTER TABLE kv ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT ''"
+        )
+        return
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(kv)").fetchall()}
+    if "email" not in cols:
+        conn.execute("ALTER TABLE kv ADD COLUMN email TEXT NOT NULL DEFAULT ''")
 
 
 def normalize_payment_mode(value: object) -> str:
@@ -152,7 +166,7 @@ def save_payload(user_id: str, payload: dict) -> None:
         if USE_POSTGRES:
             conn.execute(
                 """
-                INSERT INTO kv(user_id, payload) VALUES(%s, %s)
+                INSERT INTO kv(user_id, payload, email) VALUES(%s, %s, '')
                 ON CONFLICT(user_id) DO UPDATE SET payload = EXCLUDED.payload
                 """,
                 (user_id, blob),
@@ -160,10 +174,33 @@ def save_payload(user_id: str, payload: dict) -> None:
         else:
             conn.execute(
                 """
-                INSERT INTO kv(user_id, payload) VALUES(?, ?)
+                INSERT INTO kv(user_id, payload, email) VALUES(?, ?, '')
                 ON CONFLICT(user_id) DO UPDATE SET payload = excluded.payload
                 """,
                 (user_id, blob),
+            )
+
+
+def upsert_user_email(user_id: str, email: str) -> None:
+    """Создать пользователя при первом входе или обновить email; payload не затираем."""
+    email = str(email or "").strip()
+    empty = json.dumps(empty_state(), ensure_ascii=False)
+    with db_conn() as conn:
+        if USE_POSTGRES:
+            conn.execute(
+                """
+                INSERT INTO kv(user_id, payload, email) VALUES(%s, %s, %s)
+                ON CONFLICT(user_id) DO UPDATE SET email = EXCLUDED.email
+                """,
+                (user_id, empty, email),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO kv(user_id, payload, email) VALUES(?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET email = excluded.email
+                """,
+                (user_id, empty, email),
             )
 
 

@@ -121,6 +121,7 @@
           <thead>
             <tr>
               <th>user_id</th>
+              <th>email</th>
               <th>вкладка</th>
               <th>всего</th>
               <th>здравие</th>
@@ -178,6 +179,7 @@
         pre.textContent = JSON.stringify(u.payload, null, 2);
         tr.innerHTML = `
           <td>${escapeHtml(u.user_id)}</td>
+          <td>${escapeHtml(u.email || "—")}</td>
           <td>${escapeHtml(u.active || "—")}</td>
           <td>${u.total_candles ?? 0}</td>
           <td>${c.health ?? 0}</td>
@@ -191,7 +193,7 @@
       }
       if (!(users || []).length) {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="9" class="muted">Пока нет записей в kv</td>`;
+        tr.innerHTML = `<td colspan="10" class="muted">Пока нет записей в kv</td>`;
         tb.appendChild(tr);
       }
     }
